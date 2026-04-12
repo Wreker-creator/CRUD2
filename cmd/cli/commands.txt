@@ -1,0 +1,21 @@
+# once per terminal session
+export DATABASE_URL=postgres://wreker:pwddd@localhost:5432/marketdb?sslmode=disable
+
+# start postgres
+docker compose up db
+
+# build once (or after code changes)
+go build -o market ./cmd/cli
+
+# then freely use
+./market list
+./market add --name "Apple" --price 1.5 --calories 95 --sugar 145
+./market add --name "Banana" --price 4.5 --calories 15 --sugar 124
+./market add --name "Orange" --price 56.5 --calories 2395 --sugar 121
+./market list
+./market get --name "Apple"
+./market delete --name "Apple"
+./market list
+./market update --name "Apple" --price 1.5 --calories 95 --sugar 145
+./market update --name "Banana" --price 2.5 --calories 100 --sugar 110
+./market list
