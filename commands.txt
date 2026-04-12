@@ -1,0 +1,19 @@
+# Get all foodItems
+curl http://localhost:8080/food
+
+# Get specific food item
+curl -v http://localhost:8080/food/{name}
+
+# Post a food item
+curl -X POST http://localhost:8080/food -H "Content-Type: application/json" -d '{"name":"Apple","price":10.5, "calories":5, "sugar":10.5}'
+curl -X POST http://localhost:8080/food -H "Content-Type: application/json" -d '{"name":"Mango","price":11.5, "calories":15, "sugar":101.5}'
+
+# Delete a food item
+curl -X DELETE http://localhost:8080/food/Apple
+
+curl -v -X DELETE http://localhost:5001/tasks/{name}
+```
+
+#update a food item
+#will update everything except the name.
+curl -X PUT http://localhost:8080/food/Apple -H "Content-Type: application/json" -d '{"name":"Changed Apple","price":11.5, "calories":5, "sugar":11.5}'

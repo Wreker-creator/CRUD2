@@ -97,12 +97,13 @@ func (m *Market) handlePutRequest(w http.ResponseWriter, r *http.Request) {
 // handleDeleteRequest removes a food item by ID.
 func (m *Market) handleDeleteRequest(w http.ResponseWriter, r *http.Request) {
 
-	idStr := chi.URLParam(r, "id")
+	idStr := chi.URLParam(r, "name")
 	deleted, err := m.store.DeleteFoodItem(idStr)
 	if err != nil {
 		http.Error(w, "Failed to delete the food item", http.StatusInternalServerError)
 		return
 	}
+
 	if !deleted {
 		// Item with given ID does not exist
 		w.WriteHeader(http.StatusNotFound)
