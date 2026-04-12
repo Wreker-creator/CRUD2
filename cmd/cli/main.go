@@ -9,8 +9,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// store is a package-level pointer so all subcommands can access it
+// after PersistentPreRunE initializes it.
 var store *rest.PostgresFoodStore
 
+// rootCmd is the entry point for the CLI.
+// PersistentPreRunE runs before every subcommand, making it the right
+// place for shared setup like reading env vars and opening a DB connection.
 var rootCmd = &cobra.Command{
 	Use:   "market",
 	Short: "A cli tool for CRUD operations with food items",
@@ -20,6 +25,8 @@ var rootCmd = &cobra.Command{
 			return errors.New("DATABASE_URL env variable is not set")
 		}
 
+		// assign to the package-level store, not a new local variable.
+		// using := here would shadow the package-level store and leave it nil.
 		var err error
 		store, err = rest.NewPostgresFoodStore(dsn)
 		if err != nil {
@@ -30,6 +37,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+// listCmd fetches and prints every food item in the market.
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all items in the food market",
@@ -48,6 +56,7 @@ var listCmd = &cobra.Command{
 	},
 }
 
+// getCmd fetches a single food item by name.
 var getCmd = &cobra.Command{
 	Use:   "get",
 	Short: "Get a food item from the market",
@@ -66,6 +75,7 @@ var getCmd = &cobra.Command{
 	},
 }
 
+// addCmd inserts a new food item using values from flags.
 var addCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a food item to the market",
@@ -92,6 +102,7 @@ var addCmd = &cobra.Command{
 	},
 }
 
+// updateCmd replaces all fields of an existing food item (PUT semantics).
 var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update the values of a food item",
@@ -116,7 +127,7 @@ var updateCmd = &cobra.Command{
 			return fmt.Errorf("item with name %q does not exist", name)
 		}
 
-		// fetch updated values to confirm back to the user
+		// fetch and display the updated values so the user can confirm the change.
 		foodItem, err = store.ListFoodItem(name)
 		if err != nil {
 			return err
@@ -129,6 +140,7 @@ var updateCmd = &cobra.Command{
 	},
 }
 
+// deleteCmd removes a food item by name.
 var deleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete a food item from the market",
@@ -150,7 +162,8 @@ var deleteCmd = &cobra.Command{
 }
 
 func main() {
-	// register flags on each command that needs them
+	// register flags on each command that needs them.
+	// flags are local to their command — "list" needs none since it takes no input.
 	getCmd.Flags().String("name", "", "Name of the food item")
 
 	addCmd.Flags().String("name", "", "Name of the food item")
@@ -158,15 +171,17 @@ func main() {
 	addCmd.Flags().Int("calories", 0, "Calories of the food item")
 	addCmd.Flags().Float32("sugar", 0, "Sugar content of the food item")
 
-	updateCmd.Flags().String("name", "", "Name of the food item")
 	updateCmd.Flags().Float32("price", 0, "Price of the food item")
 	updateCmd.Flags().Int("calories", 0, "Calories of the food item")
 	updateCmd.Flags().Float32("sugar", 0, "Sugar content of the food item")
 
 	deleteCmd.Flags().String("name", "", "Name of the food item")
 
+	// register all subcommands under the root.
 	rootCmd.AddCommand(listCmd, getCmd, addCmd, updateCmd, deleteCmd)
 
+	// Execute parses os.Args and dispatches to the correct subcommand.
+	// Cobra prints the error itself, so we just exit with a non-zero code.
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

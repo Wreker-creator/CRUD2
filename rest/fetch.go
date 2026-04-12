@@ -10,6 +10,7 @@ import (
 )
 
 // FoodItem represents a single food product in the market.
+// json tags control how fields are named when encoding/decoding JSON.
 type FoodItem struct {
 	Name     string  `json:"name"`
 	Price    float32 `json:"price"`
@@ -17,7 +18,9 @@ type FoodItem struct {
 	Sugar    float32 `json:"sugar"`
 }
 
-// FoodStore defines the contract for any storage backend (in-memory, postgres, etc.)
+// FoodStore defines the contract for any storage backend.
+// Both PostgresFoodStore and StubFoodStore implement this interface,
+// which is what allows handler tests to work without a real database.
 type FoodStore interface {
 	ListAllFoodItems() ([]FoodItem, error)
 	ListFoodItem(name string) (FoodItem, error)
@@ -27,6 +30,8 @@ type FoodStore interface {
 }
 
 // Market wires the HTTP router to the store.
+// Embedding http.Handler means *Market itself satisfies http.Handler,
+// so it can be passed directly to http.ListenAndServe.
 type Market struct {
 	store FoodStore
 	http.Handler
@@ -39,6 +44,7 @@ func NewMarket(store FoodStore) *Market {
 
 	r := chi.NewRouter()
 
+	// {name} is a URL parameter chi extracts and makes available via chi.URLParam
 	r.Get("/food", market.returnAllItems)
 	r.Post("/food", market.handlePostRequest)
 	r.Get("/food/{name}", market.handleGetRequest)
@@ -50,12 +56,14 @@ func NewMarket(store FoodStore) *Market {
 	return market
 }
 
-// handleGetRequest retrieves a single food item by ID.
+// handleGetRequest retrieves a single food item by name.
 func (m *Market) handleGetRequest(w http.ResponseWriter, r *http.Request) {
 
 	name := chi.URLParam(r, "name")
 
 	foodItem, err := m.store.ListFoodItem(name)
+	// sql.ErrNoRows is the sentinel error database/sql returns when a query
+	// finds no matching row — we map that specifically to a 404.
 	if errors.Is(err, sql.ErrNoRows) {
 		http.Error(w, "Food item not found", http.StatusNotFound)
 		return
@@ -69,24 +77,26 @@ func (m *Market) handleGetRequest(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(foodItem)
 }
 
-// handlePutRequest fully replaces an existing food item by ID.
+// handlePutRequest fully replaces an existing food item.
+// PUT semantics: the client must send all fields, not just the ones changing.
 func (m *Market) handlePutRequest(w http.ResponseWriter, r *http.Request) {
 
-	idStr := chi.URLParam(r, "name")
+	name := chi.URLParam(r, "name")
 
 	var item FoodItem
+	// Decode reads the JSON body into item. Returns an error for malformed JSON.
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	updated, err := m.store.UpdateFoodItem(idStr, item)
+	updated, err := m.store.UpdateFoodItem(name, item)
 	if err != nil {
 		http.Error(w, "Failed to update food item", http.StatusInternalServerError)
 		return
 	}
 	if !updated {
-		// Item with given ID does not exist
+		// store returns false when no rows were affected, meaning name didn't exist
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -94,23 +104,23 @@ func (m *Market) handlePutRequest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// handleDeleteRequest removes a food item by ID.
+// handleDeleteRequest removes a food item by name.
 func (m *Market) handleDeleteRequest(w http.ResponseWriter, r *http.Request) {
 
-	idStr := chi.URLParam(r, "name")
-	deleted, err := m.store.DeleteFoodItem(idStr)
+	name := chi.URLParam(r, "name")
+
+	deleted, err := m.store.DeleteFoodItem(name)
 	if err != nil {
 		http.Error(w, "Failed to delete the food item", http.StatusInternalServerError)
 		return
 	}
-
 	if !deleted {
-		// Item with given ID does not exist
+		// store returns false when no rows were affected, meaning name didn't exist
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	// 202 Accepted: request was valid and the item has been removed
+	// 202 Accepted: the request was valid and the item has been removed
 	w.WriteHeader(http.StatusAccepted)
 }
 
@@ -140,7 +150,7 @@ func (m *Market) returnAllItems(w http.ResponseWriter, r *http.Request) {
 	food, err := m.store.ListAllFoodItems()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		return // bug fix: was missing return, would encode even on error
+		return // must return here — without this, Encode would still run on a broken response
 	}
 
 	w.Header().Set("Content-Type", "application/json")
