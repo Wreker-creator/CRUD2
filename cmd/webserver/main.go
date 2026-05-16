@@ -35,8 +35,10 @@ func main() {
 			log.Fatalf("Failed to listen on port 50051: %v", err)
 		}
 
-		// create a bare gRPC server with no middleware or options for now
-		grpcServer := grpc.NewServer()
+		// adding a custom interceptor that captures the duration of the call and any errors
+		grpcServer := grpc.NewServer(
+			grpc.UnaryInterceptor(marketgrpc.LoggingInterceptor),
+		)
 
 		// register our MarketServer implementation against the generated service descriptor.
 		// this is how gRPC knows to route incoming RPCs to our handler methods
