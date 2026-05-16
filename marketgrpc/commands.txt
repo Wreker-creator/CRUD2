@@ -1,0 +1,16 @@
+for GRPC server
+
+# ListAllFoodItems
+grpcurl -plaintext localhost:50051 market.MarketService/ListAllFoodItems 
+
+# ListAllFoodItem
+grpcurl -plaintext -d '{"name": "Apple"}' localhost:50051 market.MarketService/ListFoodItem
+
+# AddFoodItem
+grpcurl -plaintext -d '{"item": {"name": "Pizza", "price": 8.5, "calories": 300, "sugar": 5.0}}' localhost:50051 market.MarketService/AddFoodItem
+
+# UpdateFoodItem
+grpcurl -plaintext -d '{"name": "Apple", "item": {"name": "Apple", "price": 12.0, "calories": 5, "sugar": 9.0}}' localhost:50051 market.MarketService/UpdateFoodItem
+
+# DeleteFoodItem
+grpcurl -plaintext -d '{"name": "Pizza"}' localhost:50051 market.MarketService/DeleteFoodItem

@@ -25,6 +25,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
     ports:
       - "8080:8080"
+      - "50051:50051" #grpc
     depends_on:
       db:
         condition: service_healthy
