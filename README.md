@@ -73,10 +73,10 @@ cd CRUD2
 
 # Create a .env file in the project root
 cat > .env << EOF
-POSTGRES_USER=wreker
-POSTGRES_PASSWORD=secret
+POSTGRES_USER=_name_
+POSTGRES_PASSWORD=_password_
 POSTGRES_DB=marketdb
-DATABASE_URL=postgres://wreker:secret@db:5432/marketdb?sslmode=disable
+DATABASE_URL=postgres://_name_:_password_@db:_port_/marketdb?sslmode=disable
 EOF
 
 # Start everything — Postgres + API
