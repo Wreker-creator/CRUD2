@@ -14,6 +14,12 @@ type StubFoodStore struct {
 	FoodItems []FoodItem
 }
 
+type StubUserStore struct {
+}
+
+func (s *StubUserStore) CreateUser(email, passwordHash string) error
+func (s *StubUserStore) GetUserByEmail(email string) (User, error)
+
 func (s *StubFoodStore) ListAllFoodItems() ([]FoodItem, error) {
 	return s.FoodItems, nil
 }
@@ -75,13 +81,16 @@ func assertStatus(t *testing.T, got, want int) {
 
 func TestGetRequest(t *testing.T) {
 
-	store := &StubFoodStore{
+	foodSore := &StubFoodStore{
 		FoodItems: []FoodItem{
 			{Name: "Apple", Price: 1.5, Calories: 95, Sugar: 19},
 			{Name: "Banana", Price: 0.5, Calories: 105, Sugar: 14},
 		},
 	}
-	market := NewMarket(store)
+
+	userStore := &StubUserStore{}
+
+	market := NewMarket(foodSore, userStore)
 
 	t.Run("GET /food returns all items with 200", func(t *testing.T) {
 		req := newRequest(http.MethodGet, "/food", "")
@@ -94,8 +103,8 @@ func TestGetRequest(t *testing.T) {
 		var got []FoodItem
 		json.NewDecoder(res.Body).Decode(&got)
 
-		if len(got) != len(store.FoodItems) {
-			t.Errorf("item count: got %d, want %d", len(got), len(store.FoodItems))
+		if len(got) != len(foodSore.FoodItems) {
+			t.Errorf("item count: got %d, want %d", len(got), len(foodSore.FoodItems))
 		}
 	})
 
@@ -129,12 +138,15 @@ func TestGetRequest(t *testing.T) {
 
 func TestUpdateRequest(t *testing.T) {
 
-	store := &StubFoodStore{
+	foodstore := &StubFoodStore{
 		FoodItems: []FoodItem{
 			{Name: "Apple", Price: 1.5, Calories: 95, Sugar: 19},
 		},
 	}
-	market := NewMarket(store)
+
+	userStore := &StubUserStore{}
+
+	market := NewMarket(foodstore, userStore)
 
 	t.Run("PUT /food/{name} updates existing item and returns 200", func(t *testing.T) {
 		body := `{"name":"Apple","price":2.0,"calories":100,"sugar":20}`
@@ -170,12 +182,15 @@ func TestUpdateRequest(t *testing.T) {
 
 func TestDeleteRequest(t *testing.T) {
 
-	store := &StubFoodStore{
+	foodstore := &StubFoodStore{
 		FoodItems: []FoodItem{
 			{Name: "Apple", Price: 1.5, Calories: 95, Sugar: 19},
 		},
 	}
-	market := NewMarket(store)
+
+	userStore := &StubUserStore{}
+
+	market := NewMarket(foodstore, userStore)
 
 	t.Run("DELETE /food/{name} removes item and returns 202", func(t *testing.T) {
 		req := newRequest(http.MethodDelete, "/food/Apple", "")
@@ -200,8 +215,9 @@ func TestDeleteRequest(t *testing.T) {
 
 func TestAddRequest(t *testing.T) {
 
-	store := &StubFoodStore{}
-	market := NewMarket(store)
+	foodStore := &StubFoodStore{}
+	userStore := &StubUserStore{}
+	market := NewMarket(foodStore, userStore)
 
 	t.Run("POST /food adds item and returns 201", func(t *testing.T) {
 		body := `{"name":"Apple","price":1.5,"calories":95,"sugar":19}`
@@ -212,8 +228,8 @@ func TestAddRequest(t *testing.T) {
 
 		assertStatus(t, res.Code, http.StatusCreated)
 
-		if len(store.FoodItems) != 1 {
-			t.Errorf("expected 1 item in store, got %d", len(store.FoodItems))
+		if len(foodStore.FoodItems) != 1 {
+			t.Errorf("expected 1 item in store, got %d", len(foodStore.FoodItems))
 		}
 	})
 

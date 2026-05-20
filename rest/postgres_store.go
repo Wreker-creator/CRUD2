@@ -18,18 +18,9 @@ type PostgresFoodStore struct {
 
 // NewPostgresFoodStore opens a connection pool and verifies the DB is reachable.
 // sql.Open does not actually connect — Ping does.
-func NewPostgresFoodStore(dsn string) (*PostgresFoodStore, error) {
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to start the database, '%w'", err)
-	}
-
-	// Ping establishes a real connection to verify the DSN is correct and the DB is up
-	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("Failed to ping the database, '%w'", err)
-	}
-
-	return &PostgresFoodStore{db: db}, nil
+// UPDATE - now main handles the connection pool instead and calls NewPostgresFoodStore
+func NewPostgresFoodStore(db *sql.DB) *PostgresFoodStore {
+	return &PostgresFoodStore{db: db}
 }
 
 // ListAllFoodItems returns all rows from the market table ordered alphabetically.

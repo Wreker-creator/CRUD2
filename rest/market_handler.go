@@ -9,55 +9,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// FoodItem represents a single food product in the market.
-// json tags control how fields are named when encoding/decoding JSON.
-type FoodItem struct {
-	Name     string  `json:"name"`
-	Price    float32 `json:"price"`
-	Calories int     `json:"calories"`
-	Sugar    float32 `json:"sugar"`
-}
-
-// FoodStore defines the contract for any storage backend.
-// Both PostgresFoodStore and StubFoodStore implement this interface,
-// which is what allows handler tests to work without a real database.
-type FoodStore interface {
-	ListAllFoodItems() ([]FoodItem, error)
-	ListFoodItem(name string) (FoodItem, error)
-	UpdateFoodItem(name string, item FoodItem) (bool, error)
-	AddFoodItem(item FoodItem) error
-	DeleteFoodItem(name string) (bool, error)
-}
-
-// Market wires the HTTP router to the store.
-// Embedding http.Handler means *Market itself satisfies http.Handler,
-// so it can be passed directly to http.ListenAndServe.
-type Market struct {
+type marketHandler struct {
 	store FoodStore
-	http.Handler
 }
 
-// NewMarket creates a Market and registers all routes.
-func NewMarket(store FoodStore) *Market {
-
-	market := &Market{store: store}
-
-	r := chi.NewRouter()
-
-	// {name} is a URL parameter chi extracts and makes available via chi.URLParam
-	r.Get("/food", market.returnAllItems)
-	r.Post("/food", market.handlePostRequest)
-	r.Get("/food/{name}", market.handleGetRequest)
-	r.Put("/food/{name}", market.handlePutRequest) // PUT replaces the full resource
-	r.Delete("/food/{name}", market.handleDeleteRequest)
-
-	market.Handler = r
-
-	return market
-}
-
-// handleGetRequest retrieves a single food item by name.
-func (m *Market) handleGetRequest(w http.ResponseWriter, r *http.Request) {
+func (m *marketHandler) handleGetRequest(w http.ResponseWriter, r *http.Request) {
 
 	name := chi.URLParam(r, "name")
 
@@ -79,7 +35,7 @@ func (m *Market) handleGetRequest(w http.ResponseWriter, r *http.Request) {
 
 // handlePutRequest fully replaces an existing food item.
 // PUT semantics: the client must send all fields, not just the ones changing.
-func (m *Market) handlePutRequest(w http.ResponseWriter, r *http.Request) {
+func (m *marketHandler) handlePutRequest(w http.ResponseWriter, r *http.Request) {
 
 	name := chi.URLParam(r, "name")
 
@@ -105,7 +61,7 @@ func (m *Market) handlePutRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleDeleteRequest removes a food item by name.
-func (m *Market) handleDeleteRequest(w http.ResponseWriter, r *http.Request) {
+func (m *marketHandler) handleDeleteRequest(w http.ResponseWriter, r *http.Request) {
 
 	name := chi.URLParam(r, "name")
 
@@ -127,7 +83,7 @@ func (m *Market) handleDeleteRequest(w http.ResponseWriter, r *http.Request) {
 // handlePostRequest adds a new food item.
 // Returns 201 with no body — the client supplied all the data,
 // so echoing it back provides no extra value.
-func (m *Market) handlePostRequest(w http.ResponseWriter, r *http.Request) {
+func (m *marketHandler) handlePostRequest(w http.ResponseWriter, r *http.Request) {
 
 	var foodItem FoodItem
 
@@ -145,7 +101,7 @@ func (m *Market) handlePostRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 // returnAllItems retrieves and returns every food item in the store.
-func (m *Market) returnAllItems(w http.ResponseWriter, r *http.Request) {
+func (m *marketHandler) returnAllItems(w http.ResponseWriter, r *http.Request) {
 
 	food, err := m.store.ListAllFoodItems()
 	if err != nil {

@@ -10,6 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/migrations/001_create_market.sql:/docker-entrypoint-initdb.d/001_create_market.sql
+      - ./db/migrations/002_create_users.sql:/docker-entrypoint-initdb.d/002_create_users.sql
     ports:
       - "5432:5432"
     healthcheck:
@@ -23,9 +24,10 @@ services:
     container_name: market-api
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "8080:8080"
-      - "50051:50051" #grpc
+      - "50051:50051"
     depends_on:
       db:
         condition: service_healthy

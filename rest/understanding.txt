@@ -1,0 +1,38 @@
+1. User hits POST /auth/register
+        ↓
+   Server reads email + password from request body
+        ↓
+   Hash the password with bcrypt (never store plain text)
+        ↓
+   INSERT into users table (email, password_hash)
+        ↓
+   Return 201 — user created
+
+2. User hits POST /auth/login
+        ↓
+   Server reads email + password from request body
+        ↓
+   SELECT user WHERE email = $1
+        ↓
+   bcrypt compares submitted password against stored hash
+        ↓
+   If wrong → 401 Unauthorized
+   If correct → sign a JWT token with the user's ID inside it
+        ↓
+   Return the token to the client
+
+3. User hits GET /market (or any protected route)
+        ↓
+   Client sends the token in the request header:
+   Authorization: Bearer <token>
+        ↓
+   Middleware intercepts the request BEFORE it reaches the handler
+        ↓
+   Reads and validates the token — is it real? is it expired?
+        ↓
+   If invalid → 401, request dies here, handler never runs
+   If valid   → request passes through to the handler normally
+
+
+   The current flow
+   

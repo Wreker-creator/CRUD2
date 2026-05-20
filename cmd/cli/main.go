@@ -1,11 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
 	"rest/rest"
 
+	_ "github.com/lib/pq"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +18,8 @@ var store *rest.PostgresFoodStore
 // rootCmd is the entry point for the CLI.
 // PersistentPreRunE runs before every subcommand, making it the right
 // place for shared setup like reading env vars and opening a DB connection.
+
+// updated now because currently it just takes in a connection to the db instead of dsn
 var rootCmd = &cobra.Command{
 	Use:   "market",
 	Short: "A cli tool for CRUD operations with food items",
@@ -25,13 +29,18 @@ var rootCmd = &cobra.Command{
 			return errors.New("DATABASE_URL env variable is not set")
 		}
 
-		// assign to the package-level store, not a new local variable.
-		// using := here would shadow the package-level store and leave it nil.
-		var err error
-		store, err = rest.NewPostgresFoodStore(dsn)
+		// Open the connection pool here, same as main.go does now.
+		db, err := sql.Open("postgres", dsn)
 		if err != nil {
+			return fmt.Errorf("could not open database: %w", err)
+		}
+
+		if err := db.Ping(); err != nil {
 			return fmt.Errorf("could not connect to database: %w", err)
 		}
+
+		// NewPostgresFoodStore now just receives *sql.DB, no error returned
+		store = rest.NewPostgresFoodStore(db)
 
 		return nil
 	},
