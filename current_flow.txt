@@ -1,0 +1,18 @@
+# 1. Register a user
+curl -X POST http://localhost:8080/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com","password":"secret123"}'
+
+# 2. Login and grab the token
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com","password":"secret123"}'
+
+# 3. Copy the token from the response, then hit a protected route
+curl http://localhost:8080/food \
+  -H "Authorization: Bearer <paste token here>"
+
+# 4. Confirm auth actually works — hit without token, should get 401
+curl http://localhost:8080/food
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAdGVzdC5jb20iLCJleHAiOjE3NzkzODg2MDEsInVzZXJfaWQiOjF9.PU87tMrmGRa7DczRNyywbP-IyJi84117BAkK5FHNNAI

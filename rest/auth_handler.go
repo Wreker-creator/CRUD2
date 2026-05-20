@@ -2,6 +2,7 @@ package rest
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -74,6 +75,7 @@ func (a *authHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	user, err := a.store.GetUserByEmail(req.Email)
 	if err != nil {
 		// we dont reveal whether the email exists or not, "invalid credentials" covers everything
+		log.Printf("getUserByEmail error :%v", err)
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -81,6 +83,7 @@ func (a *authHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// returns nil if the password matches else an error is returned
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
 	}
 
 	claims := jwt.MapClaims{

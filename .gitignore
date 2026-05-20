@@ -1,3 +1,4 @@
 .env
 market
 webserver
+pgdata/
