@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/lib/pq"
 	// blank import: pq registers itself as the "postgres" driver with database/sql.
 	// we never call anything from this package directly.
-	_ "github.com/lib/pq"
 )
 
 // PostgresFoodStore holds a connection pool to Postgres.
@@ -103,15 +103,19 @@ func (p *PostgresFoodStore) UpdateFoodItem(name string, item FoodItem) (bool, er
 	return rowsAffected > 0, nil
 }
 
-// AddFoodItem inserts a new food item into the market table.
-// id, created_at, and updated_at are handled automatically by Postgres.
-func (p *PostgresFoodStore) AddFoodItem(item FoodItem) error {
-	_, err := p.db.Exec(
-		`INSERT INTO market (name, price, calories, sugar) VALUES ($1, $2, $3, $4)`,
-		item.Name, item.Price, item.Calories, item.Sugar,
-	)
+// updated - catches the specific postgres error and returns a more user-friendly message
+func (s *PostgresFoodStore) AddFoodItem(item FoodItem) error {
+	_, err := s.db.Exec(`
+        INSERT INTO market (name, price, calories, sugar)
+        VALUES ($1, $2, $3, $4)
+    `, item.Name, item.Price, item.Calories, item.Sugar)
+
 	if err != nil {
-		return fmt.Errorf("Failed to add the food item '%w'", err)
+		// pq.Error lets us inspect the Postgres error code directly
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			return fmt.Errorf("item with name %q already exists", item.Name)
+		}
+		return fmt.Errorf("failed to add food item: %w", err)
 	}
 	return nil
 }

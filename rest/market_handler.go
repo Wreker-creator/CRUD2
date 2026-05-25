@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -84,7 +86,6 @@ func (m *marketHandler) handleDeleteRequest(w http.ResponseWriter, r *http.Reque
 // Returns 201 with no body — the client supplied all the data,
 // so echoing it back provides no extra value.
 func (m *marketHandler) handlePostRequest(w http.ResponseWriter, r *http.Request) {
-
 	var foodItem FoodItem
 
 	if err := json.NewDecoder(r.Body).Decode(&foodItem); err != nil {
@@ -93,6 +94,13 @@ func (m *marketHandler) handlePostRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := m.store.AddFoodItem(foodItem); err != nil {
+		// 409 Conflict = resource already exists
+		// More accurate than 500 which implies something broke on our side
+		if strings.Contains(err.Error(), "already exists") {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		log.Printf("Failed to add the food item : %v", err)
 		http.Error(w, "Failed to add the food item", http.StatusInternalServerError)
 		return
 	}

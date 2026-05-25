@@ -54,7 +54,13 @@ func (a *authHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.store.CreateUser(req.Email, string(hash)); err != nil {
+	role := "user"
+	if r.URL.Query().Get("role") == "admin" {
+		role = "admin"
+	}
+
+	if err := a.store.CreateUser(req.Email, string(hash), role); err != nil {
+		log.Printf("Create user error : %v", err)
 		http.Error(w, "Failed to create user", http.StatusInternalServerError)
 		return
 	}
@@ -89,7 +95,7 @@ func (a *authHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"email":   user.Email,
-
+		"role":    user.Role,
 		// exp is the time of expiry of the token
 		"exp": time.Now().Add(24 * time.Hour).Unix(),
 	}

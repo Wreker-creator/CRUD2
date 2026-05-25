@@ -12,12 +12,13 @@ import (
 // StubFoodStore is an in-memory implementation of FoodStore used in tests.
 type StubFoodStore struct {
 	FoodItems []FoodItem
+	role      string
 }
 
 type StubUserStore struct {
 }
 
-func (s *StubUserStore) CreateUser(email, passwordHash string) error
+func (s *StubUserStore) CreateUser(email, passwordHash string, role string) error
 func (s *StubUserStore) GetUserByEmail(email string) (User, error)
 
 func (s *StubFoodStore) ListAllFoodItems() ([]FoodItem, error) {
