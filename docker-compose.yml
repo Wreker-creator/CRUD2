@@ -13,6 +13,7 @@ services:
       - ./db/migrations/002_create_users.sql:/docker-entrypoint-initdb.d/002_create_users.sql
       - ./db/migrations/003_add_roles_to_users.sql:/docker-entrypoint-initdb.d/003_add_roles_to_users.sql 
       - ./db/migrations/004_add_unique_name_to_food.sql:/docker-entrypoint-initdb.d/004_add_unique_name_to_food.sql
+      - ./db/migrations/005_create_refresh_tokens.sql:/docker-entrypoint-initdb.d/005_create_refresh_tokens.sql
       # the above migration is added for adding the column to already existing users table, to add the column named 'role' with default value as User
     ports:
       - "5432:5432"

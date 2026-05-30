@@ -1,7 +1,10 @@
 package rest
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -25,6 +28,11 @@ type authRequest struct {
 // what we send back
 type tokenResponse struct {
 	Token string `json:"token"`
+}
+
+type loginResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // this handles creating a new user
@@ -70,56 +78,140 @@ func (a *authHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *authHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
-
 	var req authRequest
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	user, err := a.store.GetUserByEmail(req.Email)
 	if err != nil {
-		// we dont reveal whether the email exists or not, "invalid credentials" covers everything
-		log.Printf("getUserByEmail error :%v", err)
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	// returns nil if the password matches else an error is returned
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
+	// Access token — short lived, 15 minutes
+	accessToken, err := generateAccessToken(user)
+	if err != nil {
+		http.Error(w, "failed to generate access token", http.StatusInternalServerError)
+		return
+	}
+
+	// Refresh token — just a random string, not a JWT
+	// We store it in the DB so we can validate and revoke it
+	// crypto/rand gives us cryptographically secure random bytes — not predictable
+	refreshTokenBytes := make([]byte, 32)
+	if _, err := rand.Read(refreshTokenBytes); err != nil {
+		http.Error(w, "failed to generate refresh token", http.StatusInternalServerError)
+		return
+	}
+	// encode to hex so it's a safe printable string
+	refreshTokenString := hex.EncodeToString(refreshTokenBytes)
+
+	// Save refresh token to DB with 7 day expiry
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+	if err := a.store.SaveRefreshToken(user.ID, refreshTokenString, expiresAt); err != nil {
+		http.Error(w, "failed to save refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(loginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshTokenString,
+	})
+}
+
+// handleRefresh validates a refresh token and issues a new access token
+// POST /auth/refresh
+// Body: {"refresh_token": "..."}
+func (a *authHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Look up the token in the DB
+	rt, err := a.store.GetRefreshToken(body.RefreshToken)
+	if err != nil {
+		http.Error(w, "invalid refresh token", http.StatusUnauthorized)
+		return
+	}
+
+	// Check if it's expired — the DB stores expiry but we check it in Go
+	if time.Now().After(rt.ExpiresAt) {
+		// Clean up the expired token
+		a.store.DeleteRefreshToken(body.RefreshToken)
+		http.Error(w, "refresh token expired", http.StatusUnauthorized)
+		return
+	}
+
+	// Fetch the user to get their current role
+	// We need this to put the correct role in the new access token
+	user, err := a.store.GetUserById(rt.UserId)
+	if err != nil {
+		http.Error(w, "user not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Issue a fresh access token
+	accessToken, err := generateAccessToken(user)
+	if err != nil {
+		http.Error(w, "failed to generate access token", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"access_token": accessToken,
+	})
+}
+
+// handleLogout deletes the refresh token — true server side logout
+// POST /auth/logout
+// Body: {"refresh_token": "..."}
+func (a *authHandler) handleLogout(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// We don't error if the token doesn't exist — logout should always succeed
+	// from the client's perspective
+	a.store.DeleteRefreshToken(body.RefreshToken)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// generateAccessToken is a helper used by both handleLogin and handleRefresh
+// Keeps the JWT creation logic in one place instead of duplicated
+func generateAccessToken(user User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"email":   user.Email,
 		"role":    user.Role,
-		// exp is the time of expiry of the token
-		"exp": time.Now().Add(24 * time.Hour).Unix(),
+		"exp":     time.Now().Add(15 * time.Minute).Unix(),
 	}
-
-	// sign the token with our secret key using HMAC-SHA256
-	// Anyone can READ a JWT
-	// but only someone with the secret key can sign it
-	// that's how we know a token was issued by us and not forged
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		http.Error(w, "Server configuration error", http.StatusInternalServerError)
-		return
+		return "", fmt.Errorf("JWT_SECRET not set")
 	}
 
-	tokenString, err := token.SignedString([]byte(secret))
-	if err != nil {
-		http.Error(w, "Failed to sign the token", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tokenResponse{Token: tokenString})
-
+	return token.SignedString([]byte(secret))
 }

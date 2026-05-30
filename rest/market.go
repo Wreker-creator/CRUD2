@@ -34,6 +34,8 @@ func NewMarket(foodstore FoodStore, userstore UserStore) *Market {
 	// auth routes
 	r.Post("/auth/register", authHandler.handleRegister)
 	r.Post("/auth/login", authHandler.handleLogin)
+	r.Post("/auth/refresh", authHandler.handleRefresh)
+	r.Post("/auth/logout", authHandler.handleLogout)
 
 	// food routes are protected, every request must carry a valid JWT
 	// chi.group creates a subrouter, where we apply middleware ONLY to these routes

@@ -10,40 +10,61 @@ curl -X POST "http://localhost:8080/auth/register?role=admin" \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@test.com","password":"secret123"}'
 
-# Login — copy the token from the response
+
+# Login — you now get both tokens
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user@test.com","password":"secret123"}'
 
-  <user> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAdGVzdC5jb20iLCJleHAiOjE3Nzk4MTQ1NTEsInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6MX0.dAktpXBj4Tvjjq187uwhStYrXXPsv801uVsPOt1Q8a0
 
-# ─── FOOD (replace <token> with the token from login) ────────────────────────
+for user - 
+access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAdGVzdC5jb20iLCJleHAiOjE3ODAxMzM0NzAsInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6MX0.eS36LtIBzbjtJYa5y8_hXryUaNFtDb3SpQv0aKdafgY
+refresh_token = 5b171d41e8158fb670835f88c803a5bcadd9ab1f4e3bfadd47766953c8081535
+
+# Use access token normally (expires in 15 mins)
+curl http://localhost:8080/food \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAdGVzdC5jb20iLCJleHAiOjE3ODAxMzM0NzAsInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6MX0.eS36LtIBzbjtJYa5y8_hXryUaNFtDb3SpQv0aKdafgY"
+
+# When access token expires, use refresh token to get a new one
+curl -X POST http://localhost:8080/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"5b171d41e8158fb670835f88c803a5bcadd9ab1f4e3bfadd47766953c8081535"}'
+
+# Logout — deletes the refresh token, true logout
+curl -X POST http://localhost:8080/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"<refresh_token>"}'
+
+# After logout, refresh token no longer works
+curl -X POST http://localhost:8080/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"<refresh_token>"}' 
+# → 401 invalid refresh token
+
+
+# COMMANDS TO GET RESPONSES FROM THE DB -------->
 
 # Get all items — any authenticated user
 curl http://localhost:8080/food \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAdGVzdC5jb20iLCJleHAiOjE3Nzk4MTQ1NTEsInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6MX0.dAktpXBj4Tvjjq187uwhStYrXXPsv801uVsPOt1Q8a0"
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQHRlc3QuY29tIiwiZXhwIjoxNzgwMDc2OTk0LCJyb2xlIjoiYWRtaW4iLCJ1c2VyX2lkIjoyfQ.DbFWZ-sXVs9im4Csmid6mmoVJbpPd_nKis39lJwmEak"
 
 # Get specific item — any authenticated user
 curl http://localhost:8080/food/Apple \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAdGVzdC5jb20iLCJleHAiOjE3Nzk4MTQ1NTEsInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6MX0.dAktpXBj4Tvjjq187uwhStYrXXPsv801uVsPOt1Q8a0"
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQHRlc3QuY29tIiwiZXhwIjoxNzgwMDc2OTk0LCJyb2xlIjoiYWRtaW4iLCJ1c2VyX2lkIjoyfQ.DbFWZ-sXVs9im4Csmid6mmoVJbpPd_nKis39lJwmEak"
 
 # Add item — admin only
 curl -X POST http://localhost:8080/food \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAdGVzdC5jb20iLCJleHAiOjE3Nzk4MTQ1NTEsInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6MX0.dAktpXBj4Tvjjq187uwhStYrXXPsv801uVsPOt1Q8a0" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQHRlc3QuY29tIiwiZXhwIjoxNzgwMDc2OTk0LCJyb2xlIjoiYWRtaW4iLCJ1c2VyX2lkIjoyfQ.DbFWZ-sXVs9im4Csmid6mmoVJbpPd_nKis39lJwmEak" \
   -H "Content-Type: application/json" \
   -d '{"name":"Apple","price":1.99,"calories":52,"sugar":10.4}'
 
 # Update item — admin only
 curl -X PUT http://localhost:8080/food/Apple \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAdGVzdC5jb20iLCJleHAiOjE3Nzk4MTQ1NTEsInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6MX0.dAktpXBj4Tvjjq187uwhStYrXXPsv801uVsPOt1Q8a0" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQHRlc3QuY29tIiwiZXhwIjoxNzgwMDc2OTk0LCJyb2xlIjoiYWRtaW4iLCJ1c2VyX2lkIjoyfQ.DbFWZ-sXVs9im4Csmid6mmoVJbpPd_nKis39lJwmEak" \
   -H "Content-Type: application/json" \
   -d '{"name":"Apple","price":2.49,"calories":52,"sugar":10.4}'
 
 # Delete item — admin only
 curl -X DELETE http://localhost:8080/food/Apple \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAdGVzdC5jb20iLCJleHAiOjE3Nzk4MTQ1NTEsInJvbGUiOiJ1c2VyIiwidXNlcl9pZCI6MX0.dAktpXBj4Tvjjq187uwhStYrXXPsv801uVsPOt1Q8a0"
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQHRlc3QuY29tIiwiZXhwIjoxNzgwMDc2OTk0LCJyb2xlIjoiYWRtaW4iLCJ1c2VyX2lkIjoyfQ.DbFWZ-sXVs9im4Csmid6mmoVJbpPd_nKis39lJwmEak"
 
-# ─── CONFIRM ROLE ENFORCEMENT ─────────────────────────────────────────────────
-
-# Login as regular user, try POST — should get 403
-# Login as admin, try POST — should get 201

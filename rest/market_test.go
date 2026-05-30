@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // StubFoodStore is an in-memory implementation of FoodStore used in tests.
@@ -20,6 +21,11 @@ type StubUserStore struct {
 
 func (s *StubUserStore) CreateUser(email, passwordHash string, role string) error
 func (s *StubUserStore) GetUserByEmail(email string) (User, error)
+
+func (s *StubUserStore) SaveRefreshToken(userId int, token string, expiresAt time.Time) error
+func (s *StubUserStore) GetRefreshToken(token string) (RefreshToken, error)
+func (s *StubUserStore) DeleteRefreshToken(token string) error
+func (s *StubUserStore) GetUserById(id int) (User, error)
 
 func (s *StubFoodStore) ListAllFoodItems() ([]FoodItem, error) {
 	return s.FoodItems, nil

@@ -14,5 +14,3 @@ curl http://localhost:8080/food \
 
 # 4. Confirm auth actually works — hit without token, should get 401
 curl http://localhost:8080/food
-
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFuYW55QHRlc3QuY29tIiwiZXhwIjoxNzc5NDY1NTU2LCJ1c2VyX2lkIjoxfQ.M925hVGsgvPtO7h-u8-GviQ1lGgoS81mAu7shwAQb8k - our generated secret key
